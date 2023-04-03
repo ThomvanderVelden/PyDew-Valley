@@ -5,7 +5,7 @@ from timer import Timer
 
 
 class Player(pygame.sprite.Sprite):
-    def __init__(self, pos, group):
+    def __init__(self, pos, group, collision_sprites, tree_sprites):
         super().__init__(group)
 
         self.import_assets()
@@ -14,10 +14,14 @@ class Player(pygame.sprite.Sprite):
 
         self.image = self.animations[self.status][self.frame_index]
         self.rect = self.image.get_rect(center=pos)
+        self.hitbox = self.rect.copy().inflate((-126, -70))
+        self.z = LAYERS['main']
 
         self.direction = pygame.math.Vector2()
         self.pos = pygame.math.Vector2(self.rect.center)
         self.speed = 200
+
+        self.collision_sprites = collision_sprites
 
         self.timers = {
             'tool use': Timer(350, self.use_tool),
@@ -33,6 +37,8 @@ class Player(pygame.sprite.Sprite):
         self.seeds = ['corn', 'tomato']
         self.seed_index = 0
         self.selected_seed = self.seeds[self.seed_index]
+
+        self.tree_sprites = tree_sprites
 
     def import_assets(self):
         self.animations = {'up': [], 'down': [], 'left': [], 'right': [],
@@ -85,7 +91,6 @@ class Player(pygame.sprite.Sprite):
                     self.tool_index += 1
                 else:
                     self.tool_index = 0
-                print(self.tool_index)
                 self.selected_tool = self.tools[self.tool_index]
 
             if keys[pygame.K_LCTRL]:
@@ -104,7 +109,13 @@ class Player(pygame.sprite.Sprite):
                 self.selected_seed = self.seeds[self.seed_index]
 
     def use_tool(self):
-        pass
+        if self.selected_tool == 'hoe':
+            pass
+        # if self.selected_tool == 'axe':
+        #     for tree in self.tree_sprites.sprites():
+        #         if tree.
+        if self.selected_tool == 'water':
+            pass
 
     def use_seed(self):
         pass
@@ -120,15 +131,39 @@ class Player(pygame.sprite.Sprite):
         for timer in self.timers.values():
             timer.update()
 
+    def collision(self, direction):
+        for sprite in self.collision_sprites.sprites():
+            if hasattr(sprite, 'hitbox'):
+                if sprite.hitbox.colliderect(self.hitbox):
+                    if direction == 'horizontal':
+                        if self.direction.x > 0:
+                            self.hitbox.right = sprite.hitbox.left
+                        if self.direction.x < 0:
+                            self.hitbox.left = sprite.hitbox.right
+                        self.rect.centerx = self.hitbox.centerx
+                        self.pos.x = self.hitbox.centerx
+                    if direction == 'vertical':
+                        if self.direction.y > 0:
+                            self.hitbox.bottom = sprite.hitbox.top
+                        if self.direction.y < 0:
+                            self.hitbox.top = sprite.hitbox.bottom
+                        self.rect.centery = self.hitbox.centery
+                        self.pos.y = self.hitbox.centery
+
     def move(self, dt):
 
         if self.direction.magnitude() > 0:
             self.direction = self.direction.normalize()
 
         self.pos.x += self.direction.x * self.speed * dt
+        self.hitbox.centerx = round(self.pos.x)
+        self.rect.centerx = self.hitbox.centerx
+        self.collision('horizontal')
+
         self.pos.y += self.direction.y * self.speed * dt
-        self.rect.centerx = self.pos.x
-        self.rect.centery = self.pos.y
+        self.hitbox.centery = round(self.pos.y)
+        self.rect.centery = self.hitbox.centery
+        self.collision('vertical')
 
     def update(self, dt):
         self.input()
